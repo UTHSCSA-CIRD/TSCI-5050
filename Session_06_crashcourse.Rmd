@@ -1,0 +1,214 @@
+---
+title: "Crash Course in Statistics, Part II"
+author: "Alex F. Bokov"
+date: "03/28/2016"
+output: html_document
+---
+
+```{r,echo=FALSE}
+options(width=300)
+rawdeid <- subset(read.delim('deid_bmi_temp.csv',head=T),BMI<90);
+rawdeid$AGE <- rawdeid$AGE/365;
+rawdeid$BMI <- as.numeric(as.character(rawdeid$BMI));
+rawdeid$TEMPERATURE <- as.numeric(as.character(rawdeid$TEMPERATURE));
+rawdeid$BMI <- as.numeric(as.character(rawdeid$BMI));
+rawdeid$BMI_BIN <- factor(sign(scale(rawdeid$BMI,center = 28.59999)),labels=c('low','hi'));
+levels(rawdeid$BMI_BIN) <- c('low','hi','hi');
+levels(rawdeid$SEX)<-c('f','m','m');
+levels(rawdeid$RACE)<-ifelse((xx<-levels(rawdeid$RACE))%in%c('other','black','white'),xx,'other')
+rawdeid$Y[rawdeid$SEX=='f']<- with(subset(rawdeid,SEX=='f'),-1+BMI/2.5+0.01*TEMPERATURE+rnorm(length(SEX)));
+rawdeid$Y[rawdeid$SEX!='f']<- with(subset(rawdeid,SEX!='f'),17+0.007*TEMPERATURE-.002*AGE^2+rnorm(length(SEX)));
+rawdeid$Y[rawdeid$RACE=='black'&rawdeid$SEX=='f'] <- with(subset(rawdeid,RACE=='black'&SEX=='f'),Y+5-BMI/2-AGE^2*.001);
+rawdeid.sam <- subset(rawdeid, PATIENT_NUM %in% unique(c(sample(PATIENT_NUM,200),sample(unique(PATIENT_NUM[SEX=='f'&RACE=='black']),30),sample(unique(PATIENT_NUM[SEX=='m'&RACE=='black']),30))));
+```
+
+At our last class we looked at a patient dataset with an artificial outcome variable we unimaginatively named `Y`. Here is `Y` in patients with low BMI versus high BMI.
+```{r}
+stripchart(Y~BMI_BIN,subset(rawdeid.sam),method = 'jitter',jitter = 0.2,col=c('#FF000010','#0000FF10'),vertical = T,pch='.',cex=8,main='Response Y vs BMI')
+```
+
+Here is `Y` in males vs females.
+```{r}
+stripchart(Y~SEX,rawdeid.sam,method = 'jitter',jitter = 0.2, col=c('#FF000010','#0000FF10'),vertical = T,pch='.',cex=8)
+```
+
+Here is `Y` in all combinations of sex and BMI bin.
+```{r}
+stripchart(Y~SEX+BMI_BIN,rawdeid.sam,method = 'jitter',jitter = 0.2,col=c('#FF000010','#0000FF10'),vertical = T,pch='.',cex=8)
+```
+
+We then treated BMI as a numeric variable instead of low/high and saw a different story when we plotted `Y` vs BMI for males vs females..
+```{r}
+plot(Y~BMI,subset(rawdeid.sam,SEX=='m'),ylim=c(0,30),pch='.',cex=8,col="#0000FF20");
+points(Y~BMI,subset(rawdeid.sam,SEX=='f'),pch='.',cex=8,col="#FF000020");
+```
+
+```{r,echo=FALSE}
+sexbmi <- lm(Y~SEX*BMI,rawdeid.sam);
+sexbmiage <- lm(Y~SEX*BMI*AGE,rawdeid.sam);
+```
+
+We also tried plotting `Y` vs age, for males vs females.
+```{r}
+plot(Y~AGE,subset(rawdeid.sam,SEX=='m'),ylim=c(0,30),pch='.',cex=8,col="#0000FF20");
+points(Y~AGE,subset(rawdeid.sam,SEX=='f'),pch='.',cex=8,col="#FF000020");
+```
+
+```{r,echo=FALSE}
+sexbmiage.aic <- step(sexbmiage,scope=list(.~1,.~.),direction = "both",trace=0);
+```
+
+But there is something else to keep in mind-- these data-points are not independent! Some of them come from the same individual sampled at multiple ages! To separately account for within-indvididual and between-individual variation, we need to use the `nlme` library.
+```{r}
+library(nlme);
+```
+
+We set some options to use with the `lme()` function.
+```{r}
+lmec <- lmeControl(opt='optim',maxIter=100,msMaxIter=100,niterEM=50,msMaxEval=400,nlmStepMax=200);
+```
+
+The `lme()` function is for fitting a *L*inear *M*ixed *E*ffect model. Mixed-effect means some of the effects are "fixed", like the ones we've been using up to now, and some of them are "random"-- i.e. error terms, but now there are more than one of them. But before we do that, let's see if it's worth doing. Let's fit a `gls()` model, which doesn't use random effects, and it will allow a comparison with the `lme()` model to see if it makes a difference.
+```{r}
+sexbmiage.gls <- gls(sexbmiage.aic$call$formula,rawdeid.sam,na.action=na.omit,method='ML');
+summary(sexbmiage.gls)$tTable;
+summary(sexbmiage.aic)$coef;
+```
+
+Now let's try fitting an `lme()` model.
+```{r}
+sexbmiage.lme <- lme(sexbmiage.aic$call$formula,rawdeid.sam,method='ML',na.action=na.omit,random=~1|PATIENT_NUM);
+summary(sexbmiage.lme)$tTable;
+```
+
+Is the `lme()` model a significantly better fit than the fixed-effect model? At last, something that `anova()` _is_ useful for.
+```{r}
+anova(sexbmiage.gls,sexbmiage.lme);
+```
+
+So far we've said: each patient has a unique baseline value, but they all have the same age and BMI effect. Let's see if that's actually true.
+```{r}
+sexbmiage.lmeA <- update(sexbmiage.lme,random=~AGE|PATIENT_NUM,control=lmec);
+sexbmiage.lmeB <- update(sexbmiage.lme,random=~BMI|PATIENT_NUM,control=lmec);
+
+anova(sexbmiage.lme,sexbmiage.lmeA);
+anova(sexbmiage.lme,sexbmiage.lmeB);
+```
+
+So, we are better off with a random `BMI` term in addition to a random baseline. Note: we have attributed some but not all of the BMI effect to individual variation. Now there is both a fixed `BMI` effect and a random `BMI` effect. It might also be worth seeing if including both both `BMI` _and_ `AGE` as random terms further improves fit. However, this would be something to run on a fast machine over a lunch-break.
+```{r}
+#sexbmiage.lmeAB <- update(sexbmiage.lmeA,random=~AGE+BMI|PATIENT_NUM,control=lmec);
+#anova(sexbmiage.lmeA,sexbmiage.lmeAB);
+#anova(sexbmiage.lmeB,sexbmiage.lmeAB);
+```
+
+Standardized residuals look better now. Compare the ones without the random individual variation in slope and intercept (`sexbmiage.gls`, from above)...
+```{r}
+plot(sexbmiage.gls,abline=0);
+```
+...to the ones for the model we ended up with, where in addition to between-patient variability there is a within-patient variability in the slope of the `Y` vs `BMI` line.
+```{r}
+plot(sexbmiage.lmeB,abline=0);
+```
+
+But becaues this is an `lme` model rather than an `lm` model means there are two types of residuals you can print: how far each data-point diverges from what the model would predict overall, and how far reach datpoint diverges from what the model would predict for that individual. The nice graph you are seeing is for the individual level. But if all the data points for a given individual diverge by a similar amount, that shared component gets factored out into an offset to that individual's slope and intercept estimates. Great if your goal is to predict how the next set of observations from _these_ individuals will look. But if you want to predict the results of this experiment being replicated in a completely new set of subjects, then you want the other set of residuals-- relative to the entire set, not to the respective individuals. You do this by setting `level=0` to the plot expression...
+```{r}
+plot(sexbmiage.lmeB,resid(.,level=0)~fitted(.,level=0),abline=0);
+```
+
+Wow. Looks like several distinct clusters here. This could mean that certain groups of patients are responding differently. If we properly include the grouping variable in the model, the clustering will go away. When plotting `lme` models (as opposed to `lm`), you have the option of separating out the plots by discrete variables. For example, here are the residuals for males and females plotted separately...
+```{r}
+plot(sexbmiage.lmeB,resid(.,level=0)~fitted(.,level=0)|SEX,abline=0);
+```
+
+The male residuals are an example of the random noise that we're looking for. It's the female residuals that are responsible for all the clustering we saw. The sub-group with the differential response is among the females.
+
+There is an additional variable available that we have not included in the model, and that is  `RACE`. 
+```{r}
+cbind(table(unique(rawdeid.sam[,c('PATIENT_NUM','RACE','SEX')])[,c('RACE','SEX')]));
+```
+
+Let's see if by segmenting the residual plot on both `SEX` and `RACE` we can futher isolate the differential responders.
+```{r}
+plot(sexbmiage.lmeB,resid(.,level=0)~fitted(.,level=0)|SEX+RACE,abline=0);
+```
+
+Yes! So, perhaps we need to include `RACE` in this particular model. Let's see if this improves the fit. We can add this variable to the model and determine which interaction terms to include in one command, using the `stepAIC()` function from the `MASS` library.
+```{r}
+library(MASS);
+
+sexbmiagerace.lmeB <- stepAIC(sexbmiage.lmeB
+  ,direction='both'
+  ,scope=list(lower=.~1,upper=.~RACE*SEX*BMI*AGE)
+  );
+```
+
+This improves the model fit significantly.
+```{r}
+anova(sexbmiage.lmeB,sexbmiagerace.lmeB);
+plot(sexbmiagerace.lmeB,level=0);
+plot(sexbmiagerace.lmeB,resid(.,level=0)~fitted(.,level=0)|SEX+RACE,abline=0);
+```
+
+_This_ is how residuals should look when you're finished. Here are the model estimates and significance tests.
+```{r}
+summary(sexbmiagerace.lmeB)$tTable;
+```
+
+For final interpretation of these results we should tweak the data just a little, so that `AGE` is centered. That way, the effects are reported for patients at the average age for this sample rather than for age 0. Inside of `summary()` we first use `update()` on the model and within that use `transform()` on the data being modeled to `scale()` the `AGE` variable.
+```{r}
+summary(
+  update(
+    sexbmiagerace.lmeB
+    ,data=transform(
+      rawdeid.sam
+      ,AGE=scale(AGE,scale=F)
+      )
+    )
+  )$tTable
+```
+
+In Black women only, there is a strong inverse correlation with `BMI` and `AGE`. So strong that at higher values `Y` becomes negative, and at the beginning I stipulated that a negative `Y` means the patient is in danger! So this hypothetical drug would be hazardous, and strongly counter-indicated to female Black patients. Yet, if we used too small a sample size, or one with too few Black women in it, _we would not have noticed_. We also would not have noticed if we ignored the warning given to us by the residual plots. In other words, any of the following can result in data being misinterpreted potentially putting patients at risk:
+
+* Excessively small sample sizes.
+* Sampling bias.
+* Omitting relevant variables.
+* Including too many irrelevant variables.
+* Not checking the residuals on what you think is an appropriate model.
+
+Ready to publish? Nope. This is the training data we used to build our model. Testing hypotheses on the same data is double-dipping! We need to fit this model to the data we have not touched yet. 
+
+First, lets create a dataset of the patients that are not in the `rawdeid.sam` dataset we have been using so far.
+```{r}
+rawdeid.clean<-subset(rawdeid,
+                      !PATIENT_NUM %in% rawdeid.sam$PATIENT_NUM);
+```
+
+This is a large dataset, so for the purposes of this class, lets take a random sample of _this_ one to make it go faster.
+```{r}
+rawdeid.test<-subset(rawdeid
+                     ,PATIENT_NUM %in% sample(unique(PATIENT_NUM),300,rep=F));
+```
+
+Now we take the model we have, update it with this data, and save the result. While we're at it, we do the centering of `AGE` up front.
+```{r}
+sexbmiagerace.test<-update(sexbmiagerace.lmeB
+                           ,data=transform(rawdeid.test
+                                           ,AGE=scale(AGE,scale=F)
+                                           )
+                           );
+```
+
+How do the residuals look?
+```{r}
+plot(sexbmiagerace.test,resid(.,level=0)~fitted(.,level=0),abline=0);
+plot(sexbmiagerace.test
+     ,resid(.,level=0)~fitted(.,level=0)|SEX+RACE
+     ,abline=0);
+
+```
+
+Parameter estimates and hypothesis tests.
+```{r}
+summary(sexbmiagerace.test)$tTable
+```
