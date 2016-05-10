@@ -149,19 +149,24 @@ for(ii in c('Y','SEX','AGE','BMI','RACE','VAR01','VAR02','VAR03')){
 }
 #'Now let's impute the missing data using `mice()`
 #+cache=TRUE,message=FALSE,results='hide'
-rawdeid.imp <- complete(mice(rawdeid.mis,method='cart'));
+rawdeid.impall <- mice(rawdeid.mis,method='cart');
+#'Plot convergence of the imputations
+plot(rawdeid.impall);
+#'Pull out the first imputation and the 5th one
+rawdeid.imp1 <- complete(rawdeid.impall);
+rawdeid.imp5 <- complete(rawdeid.impall,5);
 #'How well did `mice()` impute SEX?
-table(rawdeid.imp$SEX,rawdeid.sam$SEX);
+table(rawdeid.imp1$SEX,rawdeid.sam$SEX);
 #'Race?
-table(rawdeid.imp$RACE,rawdeid.sam$RACE);
+table(rawdeid.imp1$RACE,rawdeid.sam$RACE);
 #'AGE?
-plot(rawdeid.sam$AGE,rawdeid.imp$AGE,xlab='Actual',ylab='With Imputed Values');
+plot(rawdeid.sam$AGE,rawdeid.imp1$AGE,xlab='Actual',ylab='With Imputed Values');
 #'BMI?
-plot(rawdeid.sam$BMI,rawdeid.imp$BMI,xlab='Actual',ylab='With Imputed Values');
+plot(rawdeid.sam$BMI,rawdeid.imp1$BMI,xlab='Actual',ylab='With Imputed Values');
 #'Y?
-plot(rawdeid.sam$Y,rawdeid.imp$Y,xlab='Actual',ylab='With Imputed Values');
+plot(rawdeid.sam$Y,rawdeid.imp1$Y,xlab='Actual',ylab='With Imputed Values');
 #'What about the randomly generated variables that are uncorrelated with each 
 #'other?
-plot(rawdeid.sam$VAR01,rawdeid.imp$VAR01,xlab='Actual',ylab='With Imputed Values');
-plot(rawdeid.sam$VAR02,rawdeid.imp$VAR02,xlab='Actual',ylab='With Imputed Values');
-plot(rawdeid.sam$VAR03,rawdeid.imp$VAR03,xlab='Actual',ylab='With Imputed Values');
+plot(rawdeid.sam$VAR01,rawdeid.imp1$VAR01,xlab='Actual',ylab='With Imputed Values');
+plot(rawdeid.sam$VAR02,rawdeid.imp1$VAR02,xlab='Actual',ylab='With Imputed Values');
+plot(rawdeid.sam$VAR03,rawdeid.imp1$VAR03,xlab='Actual',ylab='With Imputed Values');
