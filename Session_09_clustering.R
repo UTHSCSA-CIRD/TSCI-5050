@@ -144,7 +144,7 @@ if(!require(mice)){
 }
 #'Let's create some missing data
 rawdeid.mis <- rawdeid.sam;
-for(ii in c('Y','SEX','AGE','BMI','RACE')){
+for(ii in c('Y','SEX','AGE','BMI','RACE','VAR01','VAR02','VAR03')){
   rawdeid.mis[[ii]][sample(1:nrow(rawdeid.mis),100)]<-NA;
 }
 #'Now let's impute the missing data using `mice()`
@@ -160,4 +160,8 @@ plot(rawdeid.sam$AGE,rawdeid.imp$AGE,xlab='Actual',ylab='With Imputed Values');
 plot(rawdeid.sam$BMI,rawdeid.imp$BMI,xlab='Actual',ylab='With Imputed Values');
 #'Y?
 plot(rawdeid.sam$Y,rawdeid.imp$Y,xlab='Actual',ylab='With Imputed Values');
-
+#'What about the randomly generated variables that are uncorrelated with each 
+#'other?
+plot(rawdeid.sam$VAR01,rawdeid.imp$VAR01,xlab='Actual',ylab='With Imputed Values');
+plot(rawdeid.sam$VAR02,rawdeid.imp$VAR02,xlab='Actual',ylab='With Imputed Values');
+plot(rawdeid.sam$VAR03,rawdeid.imp$VAR03,xlab='Actual',ylab='With Imputed Values');
