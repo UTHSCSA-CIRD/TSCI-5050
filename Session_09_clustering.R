@@ -142,5 +142,22 @@ if(!require(mice)){
   install.packages('mice',repos = 'https://cran.rstudio.com/');
   require(mice);
 }
-#'Let's create some missing data, with more of it missing in male patients
+#'Let's create some missing data
 rawdeid.mis <- rawdeid.sam;
+for(ii in c('Y','SEX','AGE','BMI','RACE')){
+  rawdeid.mis[[ii]][sample(1:nrow(rawdeid.mis),100)]<-NA;
+}
+#'Now let's impute the missing data using `mice()`
+#+cache=TRUE,message=FALSE,results='hide'
+rawdeid.imp <- complete(mice(rawdeid.mis,method='cart'));
+#'How well did `mice()` impute SEX?
+table(rawdeid.imp$SEX,rawdeid.sam$SEX);
+#'Race?
+table(rawdeid.imp$RACE,rawdeid.sam$RACE);
+#'AGE?
+plot(rawdeid.sam$AGE,rawdeid.imp$AGE,xlab='Actual',ylab='With Imputed Values');
+#'BMI?
+plot(rawdeid.sam$BMI,rawdeid.imp$BMI,xlab='Actual',ylab='With Imputed Values');
+#'Y?
+plot(rawdeid.sam$Y,rawdeid.imp$Y,xlab='Actual',ylab='With Imputed Values');
+
