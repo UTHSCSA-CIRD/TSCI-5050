@@ -1,0 +1,296 @@
+---
+title: "Crash Course in Statistics, Part III"
+author: "Alex F. Bokov"
+date: "04/11/2016"
+output: html_document
+---
+Today we will be talking about time-to-event (a.k.a. survival) data. The two most important things to know about survival models are:
+
+### 1. They are not just for survival. They are applicable anytime your response variable is time elapsed until a particular outcome is observed.
+
+### 2. It is an inherent feature of time-to-event data that for some subjects the outcome of interest is _never_ observed. **Do not delete such data points.** Record the latest time point when you're certain the outcome has not been observed along with a censoring variable. We will explain in more detail below.
+
+But first, let's load the data. We have a new file, that is partially prepared for you already (no importing from .csv today). To import from .csv we would use `read.delim()`. But this data is already a native R object saved out to a file, so for this we use `load()`. The same as when loading a previously saved R session, except this one contains only one object, not everything in your environment.
+
+```{r}
+load('fractures_for_TSCI5050.rdata');
+```
+As before, we sample from the full dataset for fitting our model, leaving aside the rest for hypothesis testing.
+```{r}
+fracdat0<-fracdat[trainingset<-sample(1:nrow(fracdat),250),];
+```
+This object is named `fracdat`, and it's a data-frame with one row per patient.
+```{r}
+summary(fracdat0);
+```
+Kind of unwieldy summarizing 16 columns containing divergent types of data all on one screen, isn't it? It would be nice it we could look only at columns of some specific type. Here is a function that allows you to do that.
+```{r}
+vs <- function(xx
+             ,type=c('numeric','factor','logical','character','binary','multinomial','time','date','dt')
+             ,ignorevs='ignorevs',...){
+  # This function takes a data.frame and returns the names of columns of a 
+  # particular type
+  # xx        : data.frame
+  # type      : string indicating what type of column names to return (the 
+  #             non-standard ones are explained below)
+  # ignorevs  : the name of the option setting where you store an optional 
+  #             vector of column names that should never be returned (because 
+  #             e.g. you know ahead of time that they are not useful for
+  #             plotting or analysis)
+  
+  # first we define a TRUE/FALSE test function for selecting the columns
+  # instead of a lot of if/else statements, we just have one switch() 
+  # statement that is more readable. For more information, type ?switch
+  # The first argument is match.arg, which matches the possibly partial
+  # string the user typed to full argument. Think of tye `type` argument
+  # to the vs() function as a multiple-choice question.
+  test <- switch(match.arg(type),
+                 'numeric'=is.numeric,
+                 'factor'=is.factor,
+                 'logical'=is.logical, # i.e. all non-missing values in this column are TRUE/FALSE
+                 'character'=is.character,
+                 'binary'=function(zz) length(unique(zz))==2,
+                 'multinomial'=function(zz) length(unique(zz))<length(zz),
+                 'time'=function(zz) inherits(zz,'POSIXt'),
+                 'date'=function(zz) inherits(zz,'Date'),
+                 'dt'=function(zz) inherits(zz,c('Date','POSIXt')) # i.e. either date OR time
+                 );
+  # Then we apply the test function appropriate to the data type of to each 
+  # column of xx using the `sapply()` function. What it returns, `matches` is a
+  # vector of TRUE/FALSE (logical) values, with each having the same name as 
+  # the column in xx that it refers to. If that column is the type being sought
+  # it will have a value of TRUE, otherwise a value of FALSE.
+  matches <- sapply(xx,test);
+  # we return our final answer...
+  return(
+    setdiff( # the difference between
+      # ...the names from `matches` where the corresponding value is `TRUE`
+      names(matches)[matches]
+      # ...and an optional environment variable that can be a vector of names
+      # to ignore if they exist. To set this, you can do, e.g.
+      # `option(ignorevs=c('patient_num','birth_date'))`
+      ,getOption(ignorevs)));
+}
+
+```
+So here are all the factors, and all the numeric columns, respectively:
+```{r}
+vs(fracdat0,'f'); # the 'f' expands to 'factor', that's why we use the match.arg() function
+vs(fracdat0); # by default the type argument is 'numeric'
+```
+If we can get a vector of column names, we can use it to address only certain columns of the `fracdat` data frame and not others. We can summarize just those columns.
+```{r}
+summary(fracdat0[,vs(fracdat0,'f')]);
+```
+There are categoric variables with sparsely populated levels here. There are too few individuals in those levels to meanigfully analyze. So, we should combine some levels. It would be nice to do this without a lot of repetitious typing, so here is a second function for you.
+```{r}
+binfactor<-function(xx,levs,other='other',dec=T){
+  # This function takes a factor `xx` and returns it re-binned and optionally 
+  # sorted by size.
+  # xx    : a factor
+  # levs  : Either an integer of length 1 or a vector of level names to keep.
+  #         The other levels will get binned together into a single level 
+  #         called...
+  # other : The name of the level to which all the small levels get collapsed.
+  #         `other` by default.
+  # dec   : If TRUE, the levels are also re-ordered so that they are in 
+  #         decreasing order of how many observations are part of each level.
+  #         If FALSE, then likewise but in increasing order. Finally, NA 
+  #         disables re-ordering of levels.
+  if(missing(levs)) levs <- names(which.max(summary(xx))) else {
+    # If levs argument not specified, just keep the most populated level and
+    # bin everything else together.
+    if(length(levs)==1&&!is.na(as.integer(levs))) {
+      levs <- names(sort(summary(xx),dec=T)[1:levs]);
+    }
+    # Otherwise, if a single integer was given, take that many of the most 
+    # populated levels.
+  }
+  # Capture the current levels, and then, if they are not already part of the
+  # levels you want to keep, assign to them the default `other` name.
+  newlevs <-levels(xx); newlevs[!newlevs%in%levs]<-other;
+  # newlevs is a vector of character values. Now we assign it to existing 
+  # levels, thus overwriting them.
+  levels(xx)<-newlevs;
+  # If `dec` is not set to NA we rebuild the factor with a new ordering of the
+  # levels, by size.
+  if(is.na(dec)) xx else factor(xx,levels=names(sort(summary(xx),dec=dec)))
+}
+
+```
+Before:
+```{r}
+summary(fracdat0$language_cd);
+```
+After:
+```{r}
+summary(binfactor(fracdat0$language_cd));
+```
+Non English-speakers are far too rare for this to be a good predictor variable. Similar issue with race. We will leave race and language alone just in case we later need them to track down the cause of weird residuals.
+```{r}
+summary(fracdat0$race_cd);
+summary(binfactor(fracdat0$race_cd));
+```
+However ethnicity breaks down into three interpretable groups. Let's overwrite the original variable with a re-binned one.
+```{r}
+summary(fracdat0$v007_Ethnct);
+fracdat0$v007_Ethnct <- binfactor(fracdat0$v007_Ethnct,2);
+summary(fracdat0$v007_Ethnct);
+```
+As for age-group (`age_tr_fac`), all we need to do is get rid of the empty levels. If run the function `factor()` on something that is already a factor, you still get a factor back, but this one without any empty levels.
+```{r}
+summary(fracdat0$age_tr_fac);
+fracdat0$age_tr_fac <- factor(fracdat0$age_tr_fac);
+summary(fracdat0$age_tr_fac);
+```
+So, the variables we might consider using will be sex (`sex_cd`) and ethnicity (`v007_Ethnct`). If the numeric `startage` variable gives us problems we might also use the `age_tr_fac` categoric variable.
+
+## Censoring and the censoring indicator variable
+```{r}
+library(survival);
+```
+## What happens when you omit censored data points.
+```{r}
+plot(survfit(Surv(event,cen)~cut(zbmi_tr_num,c(-Inf,median(zbmi_tr_num),Inf)),data=fracdat0),col=c('red','blue'));
+lines(survfit(
+  Surv(event)~cut(zbmi_tr_num,c(-Inf,median(zbmi_tr_num),Inf))
+  ,data=fracdat0,subset=cen==1
+  ),col=c('red','blue'),lty=2);
+```
+## Confounding between categorical variables
+Are certain combinations of categorical variables so over- or under- represented that your results will be giving you information about the predictor variables rather than the response? Here is how you can visualize that.
+```{r}
+mosaicplot(table(
+  # droplevels means it deletes all categoric variable levels that have 0 
+  # individuals in them
+  droplevels(
+    # our data, with just the categorical variables shown... cen has been made 
+    # an honorary categorical variable
+    fracdat0[,c('sex_cd','v007_Ethnct','age_tr_fac','cen')]
+    )));
+```
+Notice that the 2-5 age-range is very sparsely represented and most of the tiny/nonexistant combinations belong to that age bin. Let's have a look at the actual numeric ages and see if we can find some decent cut-points.
+```{r}
+hist(fracdat0$startage,breaks=100);
+abline(v=c(3800,6200),col='red',lwd=1);
+```
+There are fewer older and younger kids, i.e. in the regions outside the red vertical lines. Let's create a new dataset that eliminates them.
+```{r}
+fracdat1<-subset(fracdat0,startage>=3800 & startage<=6200);
+```
+
+Let's see the new mosaic plot. Much cleaner.
+```{r}
+mosaicplot(table(droplevels(
+    fracdat1[,c('sex_cd','v007_Ethnct','age_tr_fac','cen')]
+    )));
+```
+
+Now, what about the numeric variables?
+```{r}
+summary(fracdat1[,vs(fracdat1)]);
+```
+A good way to see whether they need to be transformed is to plot histograms of them.
+```{r}
+# We save the output to a `.junk` variable so it doesn't spam up the screen. We
+# are interested in the plots in this case, not the output
+.junk<-sapply(vs(fracdat1),function(ii) hist(fracdat1[[ii]],breaks=20,main='',xlab=ii));
+```
+And let's see which ones correlate with each other.
+```{r}
+plot(fracdat1[,vs(fracdat0)[1:10]],pch='.',col='#00000050');
+```
+## Starting Model
+Let's fit our first Cox Proportional Hazard model (`coxph()`).
+```{r}
+fit1<-coxph(Surv(event,cen)~sex_cd+v007_Ethnct+zbmi_tr_num+startage,data=fracdat1);
+summary(fit1);
+```
+We can perform variable selection using stepAIC, just like we did for linear models.
+```{r}
+library(MASS);
+fitaic1<-stepAIC(fit1,direction='both'
+                 ,scope=list(
+                   # lower limiet: a single survival surve with no explanatory variables!
+                   lower=.~1
+                   # upper limit: all these additional terms plus their four-way interactions
+                   ,upper=.~(.+v000_Pls_num+v002_Rsprtn_Rt_num+v006_Dstlc_Prsr_num+v010_Tmprtr_F_num)^4)
+                 # set trace to 0 if you don't want to spam the screen with output
+                 ,trace=0);
+```
+Here is what this model found.
+```{r}
+summary(fitaic1);
+```
+## Proportional Hazards
+In linear regression there is the assumption that the relationships between numeric variables are linear (or that you can transform the variables or add additional variables until they become linear). For Cox PH, the assumption that needs to be satisfied is that of proportionality. There is a function for testing this called `cox.zph()`. Here it is for the initial model...
+```{r}
+zph1<-cox.zph(fit1); zph1;
+```
+...and for the model with additional terms.
+```{r}
+zphaic1<-cox.zph(fitaic1); zphaic1;
+```
+Let's plot the hazards.
+```{r}
+layout(matrix(1:6,nrow=2));
+plot(zph1,pch='.',df=2);
+```
+
+And now the larger model
+```{r}
+layout(matrix(1:6,nrow=2));
+plot(zphaic1,pch='.',df=2)
+```
+
+
+Here is a function for plotting Cox-Snell residuals, which show you the overall fit of a Cox PH model.
+```{r}
+csres<-function(fit){
+  cs<-fit$y[,2]-resid(fit,type='martingale');
+  fitres<-survfit(coxph(Surv(cs,fit$y[,2])~1,method='breslow'),type='aalen');
+  plot(fitres$time,-log(fitres$surv),type='s',xlab='Cox-Snell Residuals'
+       ,ylab='Estimated Cumulative Hazard Function');
+  abline(0,1,col='red',lty=2);
+}
+```
+
+```{r}
+csres(fit1);
+csres(fitaic1);
+```
+
+This one is for plotting deviance residuals which give you some idea of which variable it "to blame" for poor fit.
+```{r}
+devres<-function(fit,which){
+  res<-resid(fit,type='deviance');
+  if(missing(which)) plot(fit$linear.predictor,res,ylab='Deviance Residuals',xlab='Risk Score') else{
+    xvar<-model.frame(fit)[[which]];
+    if(!is.numeric(xvar)) xvar<-jitter(as.numeric(xvar));
+    plot(xvar,res,ylab='Deviance Residuals',xlab=which);
+  }
+  abline(0,0,lty=2,col='red');
+}
+```
+
+Let's see how they work with the variables of the small and large models...
+
+```{r}
+.junk<-sapply(names(model.frame(fit1))[-1],function(ii) devres(fit1,ii));
+```
+
+Now the big model.
+```{r}
+.junk<-sapply(names(model.frame(fitaic1))[-1],function(ii) devres(fitaic1,ii));
+```
+
+Center the variables so that the main effects mean something.
+```{r}
+#
+```
+
+Now let's fit the untouched data for hypothesis testing.
+```{r}
+fitfinal<-update(fitaic1,data=fracdat[setdiff(1:nrow(fracdat),trainingset),]);
+summary(fitfinal);
+```

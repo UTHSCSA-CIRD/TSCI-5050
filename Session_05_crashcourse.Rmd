@@ -1,0 +1,198 @@
+---
+title: "Crash Course in Statistics"
+author: "Alex F. Bokov"
+date: "03/08/2016"
+output: html_document
+---
+
+Let's suppose we have a cohort of patients, for whom measurement `Y` was collected. Let's say `Y` is the patient's response to some experimental drug. Let's say that the higher the value of `Y` is, the better the patient is doing. Values of `Y` close to zero mean that the drug is ineffective, and negative values of `Y` mean the drug is endangering the patient. 
+
+First, lets read in some realistic patient vitals...
+
+```{r}
+options(width=300)
+rawdeid <- subset(read.delim('deid_bmi_temp.csv',head=T),BMI<90);
+rawdeid$AGE <- rawdeid$AGE/365;
+rawdeid$BMI <- as.numeric(as.character(rawdeid$BMI));
+rawdeid$TEMPERATURE <- as.numeric(as.character(rawdeid$TEMPERATURE));
+rawdeid$BMI <- as.numeric(as.character(rawdeid$BMI));
+```
+
+Let's create a binned BMI variable and make all unknowns into males for illustrative purposes, also simplify the race designations.
+```{r}
+rawdeid$BMI_BIN <- factor(sign(scale(rawdeid$BMI,center = 28.59999)),labels=c('low','hi'));
+levels(rawdeid$BMI_BIN) <- c('low','hi','hi');
+levels(rawdeid$SEX)<-c('f','m','m');
+levels(rawdeid$RACE)<-ifelse((xx<-levels(rawdeid$RACE))%in%c('other','black','white'),xx,'other')
+```
+
+Now let's create a simulated response variable.
+```{r,collapse=TRUE}
+rawdeid$Y[rawdeid$SEX=='f']<- with(subset(rawdeid,SEX=='f'),-1+BMI/2.5+0.01*TEMPERATURE+rnorm(length(SEX)));
+rawdeid$Y[rawdeid$SEX!='f']<- with(subset(rawdeid,SEX!='f'),17+0.007*TEMPERATURE-.002*AGE^2+rnorm(length(SEX)));
+rawdeid$Y[rawdeid$RACE=='black'&rawdeid$SEX=='f'] <- with(subset(rawdeid,RACE=='black'&SEX=='f'),Y+5-BMI/2-AGE^2*.001);
+```
+
+Now let's take a reasonable sample (800k+ is way too slow)
+```{r}
+rawdeid.sam <- subset(rawdeid, PATIENT_NUM %in% unique(c(sample(PATIENT_NUM,200),sample(unique(PATIENT_NUM[SEX=='f'&RACE=='black']),30))));
+```
+
+Plot Y vs BMI_BIN
+```{r}
+stripchart(Y~BMI_BIN,subset(rawdeid.sam),method = 'jitter',jitter = 0.2,col=c('#FF000010','#0000FF10'),vertical = T,pch='.',cex=8,main='Response Y vs BMI')
+```
+
+Now let's do a T-test comparing the response of low-BMI and high-BMI patients.
+```{r}
+t.test(Y~BMI_BIN,rawdeid.sam,var.equal = T);
+```
+
+Plot Y vs SEX
+```{r}
+stripchart(Y~SEX,rawdeid.sam,method = 'jitter',jitter = 0.2, col=c('#FF000010','#0000FF10'),vertical = T,pch='.',cex=8)
+```
+
+Now let's do the same thing but comparing the response of females and males.
+```{r}
+t.test(Y~SEX,rawdeid.sam,var.equal = T);
+```
+
+By the way, a T-test is just a special case of regression. Look:
+```{r}
+summary(lm(Y~SEX,rawdeid.sam));
+```
+
+
+
+Plot Y vs SEX _and_ BMI_BIN
+```{r}
+stripchart(Y~SEX+BMI_BIN,rawdeid.sam,method = 'jitter',jitter = 0.2,col=c('#FF000010','#0000FF10'),vertical = T,pch='.',cex=8)
+```
+
+Woow. Looks like males and females have a different response after all. Why did our t-test come back non-significant?
+
+We could have a bunch of T-tests comparing various combinations of sex and BMI. But there is a proper way to do this.
+```{r}
+anova(aov(Y~SEX+BMI_BIN,rawdeid.sam));
+```
+
+But guess what? ANOVA is _also_ just a (usually inconvenient) way of presenting results from regression analysis:
+```{r}
+anova(lm(Y~SEX+BMI_BIN,rawdeid.sam));
+```
+
+Notice, `anova()` is just a wrapper function around a fitted model. So if ANOVA is an inconvenient way of looking at the data, what's better? How about the coefficients of the regression model itself?
+```{r}
+summary(lm(Y~SEX+BMI_BIN,rawdeid.sam));
+```
+
+The problem, though is that we are still not capturing the fact that the BMI effect is _conditional_ on whether or not the patient is male! To probe this "criss-cross" behavior, we need an interaction term:
+```{r}
+summary(lm(Y~SEX+BMI_BIN+SEX:BMI_BIN,rawdeid.sam));
+```
+
+A shorthand for `SEX+BMI_BIN+SEX:BMI_BIN` is `SEX*BMI_BIN`:
+```{r}
+summary(lm(Y~SEX*BMI_BIN,rawdeid.sam));
+```
+
+But, a linear regression model like the ones fitted by `lm()` doesn't require that the variables be discrete. BMI is naturally a numeric variable, so why not let it stay that way?
+Plot Y vs SEX and _unbinned_ BMI
+```{r}
+plot(Y~BMI,subset(rawdeid.sam,SEX=='m'),ylim=c(0,30),pch='.',cex=8,col="#0000FF20");
+points(Y~BMI,subset(rawdeid.sam,SEX=='f'),pch='.',cex=8,col="#FF000020");
+```
+
+Here is the regression model.
+```{r}
+sexbmi <- lm(Y~SEX*BMI,rawdeid.sam);
+summary(sexbmi);
+```
+
+Is this a good fit? Let's plot it and find out.
+```{r}
+plot(sexbmi,pch='.',cex=10,col="#00000030", which = 1);
+plot(sexbmi,pch='.',cex=10,col="#00000030", which = 2);
+```
+
+No. Not at all. There is an additional source of variability that is not accounted for by this model.
+
+Plot Y vs SEX and AGE
+```{r}
+plot(Y~AGE,subset(rawdeid.sam,SEX=='m'),ylim=c(0,30),pch='.',cex=8,col="#0000FF20");
+points(Y~AGE,subset(rawdeid.sam,SEX=='f'),pch='.',cex=8,col="#FF000020");
+```
+
+But really, `Y~AGE` and `Y~BMI` are both two-dimensional projections of a three-dimensional cloud of data.
+
+Let's install some prerequisite packages for 3D plotting....
+```{r}
+# rglwidget
+#require('rglwidget');require('htmlwidgets');require('htmltools');require('rgl');require('plot3Drgl');
+#require('plot3D');require('misc3d');
+```
+
+Now let's see these data-points in their full glory...
+```{r}
+library(plot3Drgl); #library(knitr);
+
+#src<-paste("file://", writeWebGL(dir=tempdir(), width=700), sep="");
+#yVbmi <- matrix(c(0,1,0,0,0,0,1,0,1,0,0,0,0,0,0,1),nrow=4,byrow = T);
+#yVage <- matrix(c(1,0,0,0,0,0,1,0,0,-1,0,0,0,0,0,1),nrow=4,byrow=T);
+```
+
+
+```{r setup}
+#library(knitr);
+#knit_hooks$set(webgl = hook_webgl)
+```
+
+```{r firstplot}
+#with(subset(rawdeid.sam),
+#     scatter3Drgl(AGE,BMI,Y,colvar=as.numeric(SEX),
+#                  col=c('#FF0000','#0000FF'),xlab='Age',ylab='BMI',zlab='Y',FOV=0));
+
+#browseURL(paste("file://", writeWebGL(dir=tempdir(), width=700), sep=""));
+```
+
+The `Y~AGE` projection...
+```{r ageproj}
+#par3d(userMatrix=yVage);
+```
+
+The `Y~BMI` projection...
+```{r bmiproj}
+#par3d(userMatrix=yVbmi);
+```
+...and there is no reason at all why it must be limited to two dimensions. There will be as many dimensions are there are numeric variables.
+
+We better update the regression model to include age.
+```{r}
+sexbmiage <- update(sexbmi,.~.*AGE);
+summary(sexbmiage);
+```
+
+How normal are the residuals now?
+```{r}
+plot(sexbmiage,pch='.',cex=10,col="#00000010",which=1);
+```
+```{r}
+plot(sexbmiage,pch='.',cex=10,col="#00000010",which=2);
+```
+
+Some evidence of non-linearity, but much better than before. But do we _really_ need _all_ these terms? How do we decide which ones to keep?
+```{r}
+sexbmiage.aic <- step(update(sexbmiage,.~SEX+BMI+AGE),scope=list(lower=.~1,upper=.~(.)^3),direction = "both",trace = 3);
+summary(sexbmiage.aic);
+```
+
+We got rid of the three-way interaction term. Check the residuals.
+```{r}
+plot(sexbmiage.aic,pch='.',cex=10,col="#00000030",which=1);
+plot(sexbmiage.aic,pch='.',cex=10,col="#00000030",which=2);
+```
+
+Not visibly worse. But there is something else to keep in mind-- these data-points are not independent! Some of them come from the same individual sampled at multiple ages! To separately account for within-indvididual and between-individual variation, we need to use the `nlme` library.
+
+### To be continued!
