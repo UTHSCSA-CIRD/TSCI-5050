@@ -1,0 +1,100 @@
+defaultvartable <- function(vars, stdev){
+    if (length(vars) == 0)
+        vars <- rep(LETTERS, length.out = 3);
+    vartypes <- rep("unassigned", times = length(vars));
+    vareffects <- rep(0, times = length(vars));
+    for (i in 1:length(vars)){
+        thisvartype <- sample(1:2, 1);
+        if (thisvartype == 1){
+            vartypes[i] <- "nominal";
+            vareffects[i] <- runif(1, -(stdev), (stdev));
+        }
+        if (thisvartype == 2){
+            vartypes[i] <- "ratio";
+            vareffects[i] <- runif(1, -(stdev/2), (stdev/2));
+        }
+    }
+    varoptions <- list();
+    if (vartypes[1] == "nominal")
+        varoptions[[1]] <- list("X", "Y");
+    if (vartypes[1] == "ratio")
+        varoptions <- list("none");
+    if (length(vars) > 1){
+        for (i in 2:length(vars)){
+            if (vartypes[i] == "nominal")
+                varoptions[[i]] <- list("X", "Y");
+            if (vartypes[i] == "ratio")
+                varoptions[[i]] <- list("none");
+        }
+    }
+    vartable <- data.frame(vars, vartypes, vareffects, cbind
+                           (varoptions));
+    colnames(vartable) <- c("variable name", "type", "effect", 
+                            "options");
+    return(vartable);
+}
+makeblankdatatable <- function(vartable, n, vars){
+    if (vartable[1,"type"] == "nominal"){
+        firstcol <- factor(rep("X", n), levels = c("X", "Y"));
+    }
+    if (vartable[1,"type"] == "ratio")
+        firstcol <- rep(0, n);
+    datatable <- data.frame(firstcol);
+    if (length(vars)>1){
+        for (i in 2:length(vars)){
+            if (vartable[i,"type"] == "nominal")
+                datatable[[(vartable[i,"variable name"])]] <- "X";
+            if (vartable[i,"type"] == "ratio")
+                datatable[[(vartable[i,"variable name"])]] <- 0;
+        }
+    }
+    datatable[["response"]] <- 0;
+    colnames(datatable) <- c(vars, "response");
+    return(datatable);
+}
+correctformean <- function(datatable, stdev, basemean){
+    correction <- rnorm(1, mean=mean(datatable[["response"]]) 
+                        - basemean, sd=stdev/sqrt(nrow(datatable)));
+    for (i in 1:nrow(datatable))
+        datatable[i, "response"] <- datatable[i, "response"] - 
+            correction;
+    return(datatable);
+}
+genmultivardata <- function(n = 30, basemean = 100, stdev = 
+                                15, vars = c("A", "B", "C"), missingratio = 0, enableinteract 
+                            = 0){
+    if (is.character(vars) == TRUE){
+        if (length(stdev) == 0)
+            stdev = (basemean/5);
+        vartable <- defaultvartable(vars, stdev);
+        datatable <- makeblankdatatable(vartable, n, vars);
+    }
+    for (i in 1:nrow(datatable)){
+        subjectresult <- rnorm(1, mean=basemean, sd=stdev);
+        for (j in 1:(ncol(datatable)-1)){
+            if (vartable[j, "type"] == "nominal"){
+                varresult <- sample(1:2, 1);
+                if (varresult == 1){
+                    datatable[i,j] <- 'X';
+                    subjectresult <- subjectresult+rnorm(1, mean=vartable[j, "effect"], sd=sqrt((vartable[j, "effect"]/3)^2));
+                }
+                if (varresult == 2)
+                    datatable[i,j] <- 'Y';
+            }
+            if (vartable[j, "type"] == "ratio"){
+                datatable[i,j] <- rnorm(1, mean=(basemean/10), 
+                                        sd=(basemean/20));
+                subjectresult <- subjectresult+datatable[i,j]*rnorm(1, mean=vartable[j, "effect"], sd=sqrt((vartable[j,"effect"]/3)^2));
+            }
+            if (runif(1, 0, 1) < missingratio)
+                datatable[i,j] <- NA;
+        }
+        datatable[i,ncol(datatable)] <- subjectresult;
+    }
+    for (i in 1:(ncol(datatable)-1)){
+        if (vartable[i, "type"] == "nominal")
+            datatable[,i] <- as.factor(datatable[,i]);
+    }
+    datatable <- correctformean(datatable, stdev, basemean);
+    return(list(data = datatable, variables = vartable));
+}
