@@ -440,20 +440,30 @@ dat.lm <- lm(pre_BP_mmHg~age+sex+BMI,data=dat);
 #' etc...
 #' 
 #' Here is how one would do this using `lme()`, for repeated-measures:
+#+ eval=FALSE
 library(nlme)
-dat.lme <- lme(mmhg~age+sex+BMI,data=dat,random=~1|PatientID);
+dat.lme <- lme(mmhg~age+sex+BMI+treatment,data=dat,random=~1|PatientID);
+# compare to an equivalent fixed-effect model
+anova(gls(mmhg~age+sex+BMI+treatment,dat),dat.lme);
 summary(dat.lme);
+plot(dat.lme);
+#' However, since in generating the data you did not add any individual 
+#' variation (some random quantity that is dependent on `PatientID` just as you
+#' already have random qantities dependent on `sex` and `treatment`), there is
+#' no reason why `lme()` would improve the fit of this model.
 #' 
-#' 
-#' # Name
+#' # Robert Martinez
 #' ## Homework 1
-#' Score: 
+#' 
+#' Missing
 #' 
 #' ## Homework 2
-#' Score: 
+#' 
+#' Missing
 #' 
 #' ## Homework 3
-#' Score: 
+#' 
+#' Missing
 #'
 #' # Name
 #' ## Homework 1
