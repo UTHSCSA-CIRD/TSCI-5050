@@ -325,7 +325,7 @@ cat('expandcounts <-',paste0(capture.output(expandcounts),collapse='\n'));
 help(package='survival');
 #' ## Homework 2
 #' 
-#' Missing
+#' Score: 
 #' 
 #' ## Homework 3
 #' 
@@ -483,7 +483,9 @@ plot(dat.lme);
 #' sent me after our last class, but please remind me if you don't hear back
 #' from me in a week or so.
 #' 
-#' # Robert Martinez ## Homework 1
+#' # Robert Martinez 
+#' 
+#' ## Homework 1
 #' 
 #' Missing
 #' 
