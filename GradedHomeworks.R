@@ -206,7 +206,7 @@ predict(dat.lm,newdata = data.frame(TissueType=c('Normal','Adj','Tumor')))
 #' 
 #' ### 1.1
 #' 
-#' > Answer: In the code, ???riddle??? designates a ???function??? such that ???object = nm, nm???. In curly brackets, ???nm??? is defined as the ???names of the object??? such that whenever ???nm??? is entered in the function, it represents the names of object. l
+#' > Answer: In the code, 'riddle' designates a 'function' such that 'object = nm, nm'. In curly brackets, 'nm' is defined as the 'names of the object' such that whenever 'nm' is entered in the function, it represents the names of object. l
 #' 
 #' Basically, the `names(object) <- nm` line is where the contents of `nm` are
 #' assigned to be the new names of `object`. `nm` is supposed to be a vector of
@@ -214,7 +214,7 @@ predict(dat.lm,newdata = data.frame(TissueType=c('Normal','Adj','Tumor')))
 #' can be called like this: `foo(bar)` to return a value, and can be called like
 #' this: `foo(bar) <- baz` to set a new value. `names()` is one such function.
 #' 
-#' ### 1.3 ... How about ???[??? and ???]???? 
+#' ### 1.3 ... How about "[" and "]"? 
 #' 
 #' > [] defines the variables required for detailing this code.
 #' 
@@ -294,7 +294,7 @@ print(tallworms,row.names=F);
 #' If this is your data format, you are in luck because it is directly usable 
 #' for survival analysis:
 library(survival);
-summary(coxph(Surv(day,lost)~1,tallworms));
+summary(coxph(Surv(day,1-lost)~1,tallworms));
 #' Though in real life you would likely have one or more columns of predictor 
 #' variables and you would put those columns instead of `1` into the formula, 
 #' like this: `Surv(day,lost)~X1+X2+X3` and then it would not be a `Null model`
@@ -303,15 +303,16 @@ summary(coxph(Surv(day,lost)~1,tallworms));
 #' surviving worms at each time point (if for some reason you need that directly
 #' instead of letting the `survival` package functions plot your survival 
 #' curves etc. for you):
-summary(survfit(Surv(day,lost)~1,tallworms));
-summary(survfit(Surv(day,lost)~1,tallworms))[2:3];
-#' Here I assume that `lost` is the variable that indicates censoring. If 
-#' that's not the case, use the appropriate variable in that spot. Censoring is
-#' anything that prevents the true death-date of the worm from being observed
-#' _including_ death from artifactual causes _and_ including surviving past the 
-#' end of the observation period. You should be very skeptical of any survival 
-#' dataset of more than a tiny sample-size if none of the events are reported 
-#' as censored.
+summary(survfit(Surv(day,1-lost)~1,tallworms));
+summary(survfit(Surv(day,1-lost)~1,tallworms))[2:3];
+#' Here I assume that `lost` is the variable that indicates censoring and so I 
+#' subtract it from 1 because R uses 0 to indicate a censored event and 1 to 
+#' indicate an ordinary death. If that's not the case, use the appropriate
+#' variable in that spot. Censoring is anything that prevents the true
+#' death-date of the worm from being observed _including_ death from artifactual
+#' causes _and_ including surviving past the end of the observation period. You
+#' should be very skeptical of any survival dataset of more than a tiny
+#' sample-size if none of the events are reported as censored.
 #' 
 #' Here is a function for converting the first type of table, where there are 
 #' total numbers for each type of occurrence reported each day to the second,
@@ -448,12 +449,41 @@ anova(gls(mmhg~age+sex+BMI+treatment,dat),dat.lme);
 summary(dat.lme);
 plot(dat.lme);
 #' However, since in generating the data you did not add any individual 
-#' variation (some random quantity that is dependent on `PatientID` just as you
-#' already have random qantities dependent on `sex` and `treatment`), there is
+#' variation (some random quantity that is dependent on `PatientID` just as you 
+#' already have random qantities dependent on `sex` and `treatment`), there is 
 #' no reason why `lme()` would improve the fit of this model.
 #' 
-#' # Robert Martinez
-#' ## Homework 1
+#' > It showed that sex affected blood pressure by approximately 8 mmHg, 
+#' significantly higher than the average change in blood pressure applied due to
+#' sex in the construction of the data,
+#' 
+#' Be careful about the use of the word 'significant', it has a very specific 
+#' meaning. You probably meant 'somewhat'.
+#' 
+#' > The rise near the right side suggests that the data is somewhat right 
+#' skewed, which might call for some rewriting of the analysis, but in this case
+#' (because the data was generated) we already know that the deviation is just 
+#' sample variance
+#' 
+#' Actually, the way you generated this data will cause slight departures from 
+#' normality. For the fixed-effect portion (i.e. everything except variation by 
+#' `PatientID`) there should only be _one_ normally distributed error term and 
+#' all the effects of all the predictor variables should be _deterministic_. If 
+#' you're giving additional random variation only to certain individuals, then 
+#' you are modeling heteroscedastic errors (i.e. errors that depend on the 
+#' variables, which violates the assumptions of ordinary linear models, and in 
+#' real life happens all the time though often weakly enough that you can get 
+#' away with using `lm()` without any modifications). It's fine to model 
+#' heteroscedasticity if that is your intention, just be aware that this is what
+#' you are doing. Also, if you use anything other than or in addition to 
+#' `rnorm(...)` for your error, there will perforce be departures from normality
+#' whose magnitude will depend on the magnitude of the error.
+#' 
+#' Great job on the homeworks. I haven't had a chance to review the code you
+#' sent me after our last class, but please remind me if you don't hear back
+#' from me in a week or so.
+#' 
+#' # Robert Martinez ## Homework 1
 #' 
 #' Missing
 #' 
@@ -464,24 +494,88 @@ plot(dat.lme);
 #' ## Homework 3
 #' 
 #' Missing
+#' 
+#' # Rafael J Veraza
+#' 
+#' ## Homework 1 
+#' 
+#' Score: okay
+#' 
+#' ### 1.1
+#' 
+#' > This is intended to run, that every time that object is run a value of nm,nm will be displayed. 
+#' 
+#' More precise answer: a function that assigns the second argument to the names
+#' of the first argument returning a named version of the object it was given.
+#' 
+#' ### 1.2
+#' 
+#' >  ?????? 
+#' 
+#' Answer: it calculates a sequence of numbers (that happens to be called the
+#' Fibbonaci sequence) that is the same length as the argument that gets passed
+#' to it. In Part 2 of this homework were additional readings that could help
+#' answer this. In Part 3 it suggests copy-pasting the code into R and trying it
+#' out to see if your initial guesses are right.
+#' 
+#' ### What do you think "<-" does? 
+#' 
+#' > I think it is used for comparisons of some type??? 
 #'
-#' # Name
-#' ## Homework 1
-#' Score: 
+#' Actually, "<-" is used for assignment-- it makes the value on the left side 
+#' equal to the value on the right (and creates an object by that name if one
+#' does not already exist)
 #' 
-#' ## Homework 2
-#' Score: 
+#' ### What does "function" do? 
 #' 
-#' ## Homework 3
-#' Score: 
-#'
-#' # Name
-#' ## Homework 1
-#' Score: 
+#' > Function is the event or the action that will initiate a response. 
 #' 
-#' ## Homework 2
-#' Score: 
+#' Answer: `function` tells R that what comes after will describe a new function.
+#' This function can be assigned to a new R object, and from that point forward it 
+#' that object can be used as a function.
+# foo doesn't yet exist
+foo
+foo()
+# we give foo a value, now it exists, but it is not a function
+foo <- 3
+foo
+foo()
+# now we replace that value with date, and date happens to be a built-in
+# function that returns the current date and time
+foo <- date
+# now foo by itself returns the body of the function
+foo
+# foo() with parentheses actually invokes this function. In this case, the 
+# function has no arguments. If it had arguments, they would go inside the
+# parentheses.
+foo()
 #' 
-#' ## Homework 3
-#' Score: 
-#'
+#' ### 1.3 What is the purpose of the parentheses immediately after the "function"? 
+#' 
+#' > Parentheses is intended to hold the command or block of coding. It seems that the parenthesis is used for (functions)
+#' 
+#' These parentheses contain the arguments to a function
+#' 
+#' ### Parts 2, 3, 4
+#' 
+#' Missing
+#'   
+#' ## Homework 2 
+#' 
+#' Missing
+#' 
+#' ## Homework 3 
+#' 
+#' Missing
+#' 
+#' # Name 
+#' 
+#' ## Homework 1 
+#' Score:
+#' 
+#' ## Homework 2 
+#' Score:
+#' 
+#' ## Homework 3 
+#' Score:
+#' 
