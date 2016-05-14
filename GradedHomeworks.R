@@ -317,7 +317,7 @@ summary(survfit(Surv(day,1-lost)~1,tallworms))[2:3];
 #' Here is a function for converting the first type of table, where there are 
 #' total numbers for each type of occurrence reported each day to the second,
 #' tall format where there is one row per worm, and which is ready for analysis
-#' using `survival` functions such as `coxph` and `surfit`.
+#' using `survival` functions such as `coxph()` and `survfit()`.
 #+ echo=FALSE,message=FALSE,comment=""
 cat('expandcounts <-',paste0(capture.output(expandcounts),collapse='\n'));
 #' If you're working with survival data, it behooves you to read the help files
