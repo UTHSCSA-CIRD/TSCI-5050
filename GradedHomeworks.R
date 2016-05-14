@@ -320,8 +320,8 @@ summary(survfit(Surv(day,1-lost)~1,tallworms))[2:3];
 #' using `survival` functions such as `coxph` and `surfit`.
 #+ echo=FALSE,message=FALSE,comment=""
 cat('expandcounts <-',paste0(capture.output(expandcounts),collapse='\n'));
-#' If you're working with survival data, it behooves you to read all the 
-#' help files for the `survival` package:
+#' If you're working with survival data, it behooves you to read the help files
+#' for the `survival` package, particularly `?coxph` and `?survfit`:
 help(package='survival');
 #' ## Homework 2
 #' 
