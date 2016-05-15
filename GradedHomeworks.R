@@ -756,6 +756,7 @@ dat$genotype <- relevel(dat$genotype,'MISR/IkB (+/+)');
 #+ eval=FALSE
 summary(dat);
 #' Your new model would look like this:
+#+ eval=FALSE
 dat.lm2 <- lm(grip ~ genotype + age, dat);
 #' Isn't that easier to read already? Suggestion, if you actually intend to use this
 #' in your work-- check whether an interaction term improves the fit.
