@@ -7,7 +7,7 @@
 #' 
 #' # Yuanhang Liu
 #' ## Homework 1
-#' Score: outstanding
+#' Score: outstanding!
 #' Perfect responses all around. 
 #+ echo=FALSE, cache=TRUE
 #+ echo=FALSE,cache=TRUE
@@ -24,7 +24,7 @@ rawdeid$Y[rawdeid$SEX=='f']<- with(subset(rawdeid,SEX=='f'),-1+BMI/2.5+0.01*TEMP
 rawdeid$Y[rawdeid$SEX!='f']<- with(subset(rawdeid,SEX!='f'),17+0.007*TEMPERATURE-.002*AGE^2+rnorm(length(SEX)));
 rawdeid$Y[rawdeid$RACE=='black'&rawdeid$SEX=='f'] <- with(subset(rawdeid,RACE=='black'&SEX=='f'),Y+5-BMI/2-AGE^2*.001);
 rawdeid.sam <- subset(rawdeid, PATIENT_NUM %in% unique(c(sample(PATIENT_NUM,100),sample(unique(PATIENT_NUM[SEX=='f'&RACE=='black']),15),sample(unique(PATIENT_NUM[SEX=='m'&RACE=='black']),15))));
-
+setwd('/tmp/TSCI-5050/')
 #' Nice function, for the last question. I like the fact that you are 
 #' taking advantage of the fact that you can pass functions as variables
 #' and learning to use file-handlers.
@@ -75,7 +75,7 @@ write.csv(rawdeid.sam,'baz.csv',row.names = F)
 #' Score: excellent
 #'
 #' ## Homework 3
-#' Score: outstanding
+#' Score: outstanding!
 #' 
 #' I had expected people to use the SQLite .db file they created during HW 02
 #' but this is just as good, if not better. If R is more convenient for 
@@ -133,7 +133,7 @@ library(pander); panderOptions('table.split.table',Inf);
 pander(dbGetQuery(con, 'select patientoutcome,min(samplepurity) min, avg(samplepurity) avg,max(samplepurity) max,count(*) count from PhenotypeGEdata group by patientoutcome'))
 #' 
 #' ## Homework 3
-#' Score: outstanding
+#' Score: outstanding!
 #' 
 #' ### 3.
 #' I suggest cleaning up the data in the `data.frame` rather than in the model
@@ -325,7 +325,15 @@ cat('expandcounts <-',paste0(capture.output(expandcounts),collapse='\n'));
 help(package='survival');
 #' ## Homework 2
 #' 
-#' Score: 
+#' Score: okay
+#' 
+#' ### Part 1
+#' 
+#' Questions 26-31 missing
+#' 
+#' ### Part 3
+#' 
+#' Missing
 #' 
 #' ## Homework 3
 #' 
@@ -333,7 +341,7 @@ help(package='survival');
 #'
 #' # Michael Nipper
 #' ## Homework 1
-#' Score: outstanding
+#' Score: outstanding!
 #' 
 #' ### 1.3
 #' 
@@ -535,6 +543,7 @@ plot(dat.lme);
 #' Answer: `function` tells R that what comes after will describe a new function.
 #' This function can be assigned to a new R object, and from that point forward it 
 #' that object can be used as a function.
+#+ error=TRUE
 # foo doesn't yet exist
 foo
 foo()
@@ -570,14 +579,226 @@ foo()
 #' 
 #' Missing
 #' 
-#' # Name 
+#' # You Zhou
 #' 
 #' ## Homework 1 
-#' Score:
+#' Score: excellent
+#' 
+#' ### Part 1
+#' missing interpretation of what code does
+#' 
+#' ### Part 4
+cal_ttest <- function(x)
+{ 
+  stats <- c()
+  for (i in 1:nrow(x)){
+    stats<- c(stats, t.test(x[i,1:6],x[i,7:12])$p.value)}
+  return(stats)}
+
+#' > The data is a RNA sequencing data. Each row is a gene, and each column is a sample. Column 1-6 are the control group and 7-12 are treatment group. I would like to know the p value of each gene in the dataset. This function is useful because it will iterate through all the rows in the dataset and return me the p value of each gene. 
+#' 
+#' There are a number of built-in R functions that will iterate anything you 
+#' like over rows or columns without needing a `for` loop
+# create example data
+dat <- matrix(rnorm(288),ncol=12);
+cal_ttest(dat);
+apply(dat,1,function(xx,...) t.test(xx[1:6],xx[7:12])$p.value);
+#' Broken up by argument here is how the second expression reads:
+#+ eval = FALSE
+apply(                 # very useful function, see ?apply and also ?sapply and ?lapply
+  X = dat              # the input data, a matrix or data frame
+  ,MARGIN = 1          # whether to iterate over rows (1, default), columns (2), or both (1:2)
+  ,FUN = function(xx){ # either the name of a function (no quotes, no parentheses
+                       # or an in-line function declaration _with_ parentheses, like this one
+    t.test(xx[1:6],xx[7:12])$p.value   # the body of the function
+                                       # note that there is nothing but white-space between
+                                       # function(xx) and the brackets ({}) around the body
+                                       # of the function, but for a one-line body like this 
+                                       # one, the brackets are optional
+  }                   # end of FUN
+)                     # end of apply
+#' As `apply()` iterates over the rows (or columns) of data, the function 
+#' specified in the `FUN` argument will be passed that row (or column) of
+#' data as its first argument. Before getting passed, the row or column will
+#' be coerced to an ordinary vector, so be warned-- if the input is a `data.frame`
+#' and some of its columns are non-numeric, they will probably be converted to
+#' text. The way to get around this is to pass only the needed columns of the `data.frame`
+#' If instead of `function(xx,...)` you used a stand-alone function name
+#+ eval = FALSE
+apply(dframe[,1:12],1,function(xx) t.test(xx[1:6],xx[7:12])$p.value);
+#' But why would you want to do this? It's longer to write than just `cal_ttest(dat)`.
+#' The answer is that `t.test()` is probably not the only thing you will need
+#' to iterate over the rows and columns of data. So instead of having to write
+#' nearly identical functions differing only in the content of their `for` loops
+#' each time you want to do something else, you can use `apply()`. In fact, for
+#' the more frequently used ones, you can have the best of both worlds by having 
+#' your t.test-specific function be a wrapper for apply. Or better yet, a wrapper
+#' for any function that takes two vectors as input and have that function be
+#' `t.test()` by default. Also, now the choice of columns is no longer hardcoded
+#' 
+cal_ttest_new <- function(data,aa,bb,extract='p.value',fun=t.test,...){
+  apply(cbind(data[,aa],data[,bb]),1,function(xx) fun(xx[aa],xx[bb],...)[[extract]])
+};
+#' Here is the above, expanded for readability:
+cal_ttest_new <- function(data,aa,bb,extract='p.value',fun=t.test,...){
+  # data    : the data
+  # aa      : vector of column names or indexes for the first group of samples
+  # bb      : vector of column names or indexes for the second group of samples
+  # extract : function for extracting what you want from the function's output at 
+  #         : each iteraction
+  # fun     : function to use (t.test by default), must take two vectors as its
+  #           first arguments
+  # ...     : allow optional arguments to be passed to fun (to t.test by default)
+  apply(
+    X = cbind(data[,aa],data[,bb])
+    ,MARGIN = 1
+    ,FUN = function(xx) {  # this function calls the function you specify
+      fun(xx[aa],xx[bb],...)[[extract]]   # note xx is a vector, so it's xx[aa], not xx[,aa]
+    } # end of function
+  ) # end of apply expression
+} # end of the entire function
+
+cal_ttest(dat);
+cal_ttest_new(dat,1:6,7:12);
+#' And if instead of p-values you later want to get confidence intervals on the 
+#' effect size, you can change the `extract` argument from its default value
+cal_ttest_new(dat,1:6,7:12,'conf.int');
+#' Or the raw t.statistics...
+cal_ttest_new(dat,1:6,7:12,'statistic');
+#' If you want correlations or covariances you can do this by changing the `extract`
+#' and the `fun` arguments
+cal_ttest_new(dat,1:6,7:12,1,cor);
+cal_ttest_new(dat,1:6,7:12,1,cov);
+#' Both of those give a single numeric value as an output, so we use `1` as the `extract`
+#' argument.
+#' 
+#' One last piece of advice: if you get your p.values from RNA seq this way for real-life 
+#' purposes, make sure
+#' to run them through `p.adjust()` or install the `qvalue` package and run them through that
+p.adjust(cal_ttest_new(dat,1:6,7:12),method='fdr');
 #' 
 #' ## Homework 2 
-#' Score:
+#' Score: outstanding!
+#' 
+#' ### Question 22 in Part 1:
+#' 
+#'    SELECT character.name, actor.name
+#'    FROM character
+#'    INNER JOIN character_tv_show
+#'    ON character.id = character_tv_show.character_id
+#'    INNER JOIN character_actor
+#'    ON character_tv_show.character_id = character_actor.character_id
+#'    INNER JOIN actor
+#'    ON actor.id = character_actor.actor_id;
+#' 
+#' This works, but it's not necessary to include the `character_tv_show` table
+#' since there already exists a `character_actor` table and you can go directly
+#' from `character` to `character_actor` to `actor`
+#' 
+#' ### Question 30 in Part 1:
+#' 
+#'     select * from robots where substr(location, -2) like 'ny' 
+#' 
+#' This works, but gives the same results as an exact match (`=`) and the
+#' latter is faster on large datasets.
+#' 
+#' ### 3.1
+#' You can use the same approach as in your answer in 3.2 for a more generalizable
+#' and compact query::
+#' 
+#'     SELECT COUNT(*) FROM gripstrength2 GROUP BY GENOTYPE
+#'     
+#' ### 3.2
+#' You can combine these into a single query:
+#' 
+#'     SELECT MAX(value), MIN(value), AVG(value) FROM gripstrength2 GROUP BY GENOTYPE
+#'     
+#' ### 3.4: Are some variables in your data only allowed to have a few discrete, predefined values? Which ones are they? Can you think of a SQL query that will help you identify (and maybe even count) typos in these variables that cause them to have disallowed values?
+#' > No. The grip strength may very in each individuals so there is no predefined values.
+#' 
+#' I didn't say response variable, but rather any variable. `GENOTYPE` is also a variable, and that definitely 
+#' has pre-defined values. The query in answer 3.1 can help 
+#' catch typos or incorrect capitalizations (because you will see more groups than you expected and any extra
+#' groups will have tiny counts). Other common variables where this can happen include sex and treatment group/s.
+#' This is really just a special case of validating data in general. For example, you might want to count the number
+#' rows for which numeric columns have 'illegal' values such as negative or implausibly large.
 #' 
 #' ## Homework 3 
-#' Score:
+#' Score: outstanding!
 #' 
+#' ### 2.
+#' I could find no data file, so was limited in my interpretation of your results/code,
+#' but will do what I can to give you feedback in the below items.
+#' 
+#' ### 3
+#+ eval=FALSE
+dat <- dbGetQuery( con, 'SELECT column3, column7, column8 FROM gripstrengthnew');
+#' How did the data end up with generic column names? From your screenshot in 
+#' HW02, it looks like you were able to get column names for your other dataset. 
+#' If I had to guess, maybe the one you imported for this one did not have the
+#' header row? Anyway, you can patch it within R before running `lm()` as follows:
+#+ eval=FALSE
+names(dat) <- c('grip','age','genotype');
+#' The above will help avoid mistakes and will make it easier to interpret all results.
+#' Also, it is better to do data-type conversions once at the start within  the data
+#' frame rather than inside `lm()` because the latter creates long, awkward variable
+#' names that make the output hard to read and may confuse certain other R functions 
+#' that you might later wish to use on `dat.lm`.
+#+ eval=FALSE
+dat$grip <- as.numeric(dat$grip); 
+dat$age <- as.numeric(dat$age);
+dat$genotype <- factor(dat$genotype);
+#' You might also wish to make sure that the reference (first) level of `genotype` is 
+#' set as the wildtype:
+#+ eval=FALSE
+dat$genotype <- relevel(dat$genotype,'MISR/IkB (+/+)');
+#' Make sure to check your work to see if some unexpected error becomes apparent
+#+ eval=FALSE
+summary(dat);
+#' Your new model would look like this:
+dat.lm2 <- lm(grip ~ genotype + age, dat);
+#' Isn't that easier to read already? Suggestion, if you actually intend to use this
+#' in your work-- check whether an interaction term improves the fit.
+#+ eval=FALSE
+dat.lm3 <- update(dat.lm2(.~age*genotype));
+anova(dat.lm2, dat.lm3);
+#' If the fit for dat.lm3 is significantly better, you might want to use that instead.
+#' The implication of an interaction term is that the effect of genotyp on grip-strength 
+#' can vary with age.
+#' 
+#' ### 4.
+#' 
+#' > Column3 is grip strength, column7 is age and column8 is genotype. The linear fit 
+#' > indicates that grip strength increase with age, 
+#' 
+#' The results for `column7` are not statistically significant so we cannot conclude anything
+#' new about its change with age, so the default assumption is that they do not change with
+#' age regardless of the value of the coefficient. 
+#' 
+#' I was mistaken to ask students 
+#' " _how much each predictor variable affects the response variable, whether or not that effect is significant_ "
+#' because that may get people into the habit of talking about the direction and size of
+#' non-significant effects.
+#' 
+#' > and is significantly lower in MISR mice compared to WT. 
+#' 
+#' I agree.
+#' 
+#' > Residuals does not fit with normal distribution very well, 
+#' > lowest and highest fitted values seems to have lower residuals,
+#' 
+#' Actually, for a medium sample size like this one, I think your residuals look
+#' pretty normal, I don't see a big bias toward negative values. If by "lower" you
+#' mean lower absolute value, try having a look at the following plot:
+#+ eval=FALSE
+plot(dat.lm,which=3);
+#' Every sample has deviations from normality including actual
+#' random variables returned by the `rnorm()` function:
+qqnorm(foo<-rnorm(79));qqline(foo,lty=3); 
+#' Your deviations from normality seem pretty symmetrically distributed,
+#' so at least there is not a lot of bias.
+#' 
+#' > indicating that besides genotype and age, there are other factors that correlate with grip strength.
+#' 
+#' Insofar as there are any important deviations from normality, the `grip ~ age*genotype` model might remedy
+#' them, so you might want to check that first.
