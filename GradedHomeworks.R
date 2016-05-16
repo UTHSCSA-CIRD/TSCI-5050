@@ -437,7 +437,7 @@ summary(rawdeid.sam);
 #' an 'after' measurement.
 #' 
 #' ## Homework 3
-#' Score: 
+#' Score: excellent
 #'
 #' ### 3.
 #' 
