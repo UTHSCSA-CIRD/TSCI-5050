@@ -5,12 +5,26 @@
 #' precious: TRUE
 #' ---
 #' 
-#' # Yuanhang Liu
-#' ## Homework 1
-#' Score: outstanding!
-#' Perfect responses all around. 
-#+ echo=FALSE, cache=TRUE
+#+ echo=FALSE
+setwd('/tmp/TSCI-5050/');
+message <- "
+
+## Note:
+TSCI 5050 is a one-credit elective graded pass/fail. You have passed this course.
+
+Below you will find feedback and advice on your submitted homeworks. I hope that it is in some way useful to you. I did not just comment on mistakes-- I also commented on correct answers where I thought you would benefit from the additional information. 
+
+If a section or an entire homework was missing, I labeled it 'Missing'. If this was in error, and you actually have it someplace and I didn't get it, feel free to email it to me and I will send you an updated version of this document. But again, you have already passed this class, so I ask that you resubmit a missing assignment only if you actually want feedback on it.
+
+If there are no comments at all for a particular homework section and it is not labeled 'Missing', then you can assume you got it right.
+
+For most people this is a tough topic, and this has been the first semester that TSCI 5050 been offered. I admire you for trying something new, and am honored to have been your instructor. Thank you for your hard work; I wish you success and adventure in your future endeavors. If any additional thoughts arise on how I can make TSCI 5050 better for future students, please let me know.
+
+-- Alex F. Bokov
+";
+#' 
 #+ echo=FALSE,cache=TRUE
+setwd('/tmp/TSCI-5050/');
 rawdeid <- subset(read.delim('deid_bmi_temp.csv',head=T),BMI<90);
 rawdeid$AGE <- rawdeid$AGE/365;
 rawdeid$BMI <- as.numeric(as.character(rawdeid$BMI));
@@ -24,7 +38,13 @@ rawdeid$Y[rawdeid$SEX=='f']<- with(subset(rawdeid,SEX=='f'),-1+BMI/2.5+0.01*TEMP
 rawdeid$Y[rawdeid$SEX!='f']<- with(subset(rawdeid,SEX!='f'),17+0.007*TEMPERATURE-.002*AGE^2+rnorm(length(SEX)));
 rawdeid$Y[rawdeid$RACE=='black'&rawdeid$SEX=='f'] <- with(subset(rawdeid,RACE=='black'&SEX=='f'),Y+5-BMI/2-AGE^2*.001);
 rawdeid.sam <- subset(rawdeid, PATIENT_NUM %in% unique(c(sample(PATIENT_NUM,100),sample(unique(PATIENT_NUM[SEX=='f'&RACE=='black']),15),sample(unique(PATIENT_NUM[SEX=='m'&RACE=='black']),15))));
-setwd('/tmp/TSCI-5050/')
+
+#' # Yuanhang Liu
+#+ results='asis',echo=FALSE
+cat(message);
+#' ## Homework 1
+#' Score: outstanding!
+#' Perfect responses all around. 
 #' Nice function, for the last question. I like the fact that you are 
 #' taking advantage of the fact that you can pass functions as variables
 #' and learning to use file-handlers.
@@ -83,6 +103,8 @@ write.csv(rawdeid.sam,'baz.csv',row.names = F)
 #' means, do that. 
 #' 
 #' # Desiree Wilson
+#+ results='asis',echo=FALSE
+cat(message);
 #' ## Homework 1
 #' Score: good
 #' 
@@ -171,6 +193,8 @@ predict(dat.lm,newdata = data.frame(TissueType=c('Normal','Adj','Tumor')))
 #' to each other than to tumor tissues. 
 #' 
 #' # Mohammed Al Fayyadh
+#+ results='asis',echo=FALSE
+cat(message);
 #' ## Homework 1
 #' Score: okay
 #' 
@@ -201,6 +225,8 @@ predict(dat.lm,newdata = data.frame(TissueType=c('Normal','Adj','Tumor')))
 #' Missing.
 #'
 #' # Meghna N Chinchankar
+#+ results='asis',echo=FALSE
+cat(message);
 #' ## Homework 1
 #' Score: very good
 #' 
@@ -340,6 +366,8 @@ help(package='survival');
 #' Missing
 #'
 #' # Michael Nipper
+#+ results='asis',echo=FALSE
+cat(message);
 #' ## Homework 1
 #' Score: outstanding!
 #' 
@@ -492,7 +520,8 @@ plot(dat.lme);
 #' from me in a week or so.
 #' 
 #' # Robert Martinez 
-#' 
+#+ results='asis',echo=FALSE
+cat(message);
 #' ## Homework 1
 #' 
 #' Missing
@@ -506,7 +535,8 @@ plot(dat.lme);
 #' Missing
 #' 
 #' # Rafael J Veraza
-#' 
+#+ results='asis',echo=FALSE
+cat(message);
 #' ## Homework 1 
 #' 
 #' Score: okay
@@ -580,7 +610,8 @@ foo()
 #' Missing
 #' 
 #' # You Zhou
-#' 
+#+ results='asis',echo=FALSE
+cat(message);
 #' ## Homework 1 
 #' Score: excellent
 #' 
